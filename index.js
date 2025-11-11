@@ -52,7 +52,13 @@ async function startBot() {
                 
                 if (qr && connection !== 'open') {
                     logger.info("QR Code gerado - escaneie no WhatsApp");
-                    qrcode.generate(qr, { small: true });
+                    console.log('\n' + '='.repeat(50));
+                    console.log('ESCANEIE O QR CODE ABAIXO:');
+                    console.log('='.repeat(50));
+                    qrcode.generate(qr, { small: true, width: 40 });
+                    console.log('='.repeat(50));
+                    console.log('Use WhatsApp > Dispositivos Conectados > Conectar Dispositivo');
+                    console.log('='.repeat(50) + '\n');
                 }
                 
                 logger.info(`Status da conexão: ${connection}`);
