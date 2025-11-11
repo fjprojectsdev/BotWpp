@@ -1,0 +1,28 @@
+{
+  "name": "@imavy/whatsapp-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Bot WhatsApp com IA integrada usando Hugging Face",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test tests/*.test.js",
+    "setup": "node scripts/setup.js"
+  },
+  "keywords": ["whatsapp", "bot", "ai", "huggingface"],
+  "author": "iMavy Team",
+  "license": "MIT",
+  "dependencies": {
+    "@huggingface/inference": "^4.13.2",
+    "axios": "^1.13.2",
+    "baileys": "^6.7.21",
+    "dotenv": "^16.6.1",
+    "node-fetch": "^3.3.2",
+    "node-schedule": "^2.1.1",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

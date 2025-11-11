@@ -1,0 +1,34 @@
+# Dependências
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos de ambiente
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Arquivos de autenticação do WhatsApp
+auth_info/
+authstate_check.txt
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
+.temp/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
