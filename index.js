@@ -11,14 +11,12 @@ import { validateInput } from './utils/validator.js';
  * Valida configurações necessárias
  */
 function validateConfig() {
-    const required = ['HUGGING_FACE_API'];
-    const missing = required.filter(key => !process.env[key]);
-    
-    if (missing.length > 0) {
-        logger.error(`Variáveis de ambiente obrigatórias não encontradas: ${missing.join(', ')}`);
-        logger.info('Crie um arquivo .env baseado no .env.example');
-        process.exit(1);
+    // HUGGING_FACE_API é opcional - bot funcionará sem IA se não configurado
+    if (!process.env.HUGGING_FACE_API) {
+        logger.warn('HUGGING_FACE_API não configurado - funcionalidades de IA desabilitadas');
     }
+    
+    logger.info('Configuração validada com sucesso');
 }
 
 /**
