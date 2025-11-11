@@ -52,7 +52,7 @@ async function handleAdminCommand(sock, message, text, groupId, senderId) {
 }
 
 /**
- * Manipula mensagens de grupo com validações de segurança
+ * Manipula mensagens apenas do grupo DESENVOLVIMENTO IA
  */
 export async function handleGroupMessages(sock, message) {
     try {
@@ -61,10 +61,19 @@ export async function handleGroupMessages(sock, message) {
         
         if (!isGroup) return;
         
+        // Verificar se é o grupo correto
+        const groupInfo = await sock.groupMetadata(groupId);
+        const groupName = groupInfo.subject;
+        
+        if (groupName !== 'DESENVOLVIMENTO IA') {
+            logger.info(`Mensagem ignorada - grupo: ${groupName}`);
+            return;
+        }
+        
         const text = extractMessageText(message);
         if (!text) return;
         
-        logger.info(`Mensagem recebida: ${text}`);
+        logger.info(`Mensagem do grupo DESENVOLVIMENTO IA: ${text}`);
         
         // Comandos administrativos
         if (text.toLowerCase().includes('fechar grupo') || text.toLowerCase().includes('/fechar')) {
