@@ -9,6 +9,9 @@ const BOT_TRIGGER = process.env.BOT_TRIGGER || 'iMavy';
 const ADMIN_ID = process.env.ADMIN_ID || '227349882745008@lid';
 const ALLOWED_GROUPS = [TARGET_GROUP];
 
+// Sistema de contagem de mensagens
+const messageCount = new Map(); // {userId: {name: string, count: number}}
+
 /**
  * Extrai texto de diferentes tipos de mensagem
  */
@@ -27,6 +30,31 @@ function extractMessageText(message) {
         default:
             return '';
     }
+}
+
+/**
+ * Gera ranking de membros mais ativos
+ */
+function generateRanking() {
+    const sorted = Array.from(messageCount.entries())
+        .sort(([,a], [,b]) => b.count - a.count)
+        .slice(0, 10);
+    
+    if (sorted.length === 0) {
+        return '📊 RANKING DE MEMBROS\n\nNenhuma mensagem registrada ainda.';
+    }
+    
+    let ranking = '🏆 RANKING DE MEMBROS MAIS ATIVOS\n\n';
+    
+    sorted.forEach(([userId, data], index) => {
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}️⃣`;
+        ranking += `${medal} ${data.name}: ${data.count} mensagens\n`;
+    });
+    
+    const totalMessages = Array.from(messageCount.values()).reduce((sum, data) => sum + data.count, 0);
+    ranking += `\n📊 Total de mensagens: ${totalMessages}`;
+    
+    return ranking;
 }
 
 /**
@@ -71,9 +99,26 @@ export async function handleGroupMessages(sock, message) {
         }
         
         const text = extractMessageText(message);
+        const senderId = message.key.participant || message.key.remoteJid;
+        const senderName = message.pushName || 'Usuário';
+        
+        // Contar mensagem (mesmo sem texto)
+        if (!messageCount.has(senderId)) {
+            messageCount.set(senderId, { name: senderName, count: 0 });
+        }
+        messageCount.get(senderId).count++;
+        messageCount.get(senderId).name = senderName; // Atualizar nome
+        
         if (!text) return;
         
         logger.info(`Mensagem do grupo DESENVOLVIMENTO IA: ${text}`);
+        
+        // Comando de ranking
+        if (text.toLowerCase().includes('/ranking') || text.toLowerCase().includes('ranking')) {
+            const rankingText = generateRanking();
+            await sock.sendMessage(groupId, { text: rankingText }, { quoted: message });
+            return;
+        }
         
         // Comandos administrativos
         if (text.toLowerCase().includes('fechar grupo') || text.toLowerCase().includes('/fechar')) {
