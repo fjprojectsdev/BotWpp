@@ -51,9 +51,17 @@ async function startBot() {
                 const { connection, lastDisconnect, qr } = update;
                 
                 if (qr && connection !== 'open') {
-                    console.log('\n📱 QR CODE - Escaneie no WhatsApp:');
-                    qrcode.generate(qr, { small: true, width: 25 });
-                    console.log('🔗 WhatsApp > Dispositivos Conectados > Conectar\n');
+                    const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qr)}`;
+                    
+                    console.log('\n' + '='.repeat(60));
+                    console.log('🔗 LINK DO QR CODE:');
+                    console.log(qrLink);
+                    console.log('\n📱 COMO CONECTAR:');
+                    console.log('1. Copie o link acima');
+                    console.log('2. Abra no navegador');
+                    console.log('3. WhatsApp > Dispositivos Conectados > Conectar');
+                    console.log('4. Escaneie o QR da tela');
+                    console.log('='.repeat(60) + '\n');
                 }
                 
                 logger.info(`Status da conexão: ${connection}`);
