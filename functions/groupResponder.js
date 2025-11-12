@@ -11,11 +11,13 @@ const ALLOWED_GROUPS = [TARGET_GROUP];
 
 // Sistema de contagem de mensagens
 const messageCount = new Map(); // {userId: {name: string, count: number, weeklyCount: number, dailyMessages: [], hourlyStats: []}}
-const warnings = new Map(); // {userId: warningCount}
-const mutedUsers = new Map(); // {userId: unmuteTime}
+const warnings = new Map(); // {userId: {count, reasons: []}}
+const bannedUsers = new Set(); // Set of banned userIds
 const reminders = new Map(); // {id: {time, message, groupId}}
-const polls = new Map(); // {pollId: {question, options, votes}}
 const spamDetection = new Map(); // {userId: {lastMessage, count, timestamp}}
+const welcomeEnabled = true;
+const groupRules = 'Seja respeitoso, não faça spam, mantenha o foco no desenvolvimento de IA.';
+const newMembers = new Map(); // {userId: joinDate}
 
 // Dados temporais
 const dailyStats = new Map(); // {date: messageCount}
@@ -103,6 +105,28 @@ function detectSpam(userId, text) {
     
     spamDetection.set(userId, userSpam);
     return userSpam.count >= 3;
+}
+
+/**
+ * Lista de todos os comandos
+ */
+function getCommandsList() {
+    return `🤖 COMANDOS DISPONÍVEIS\n\n📊 ESTATÍSTICAS:\n/ranking - Top 10 membros\n/stats - Estatísticas gerais\n/atividade - Gráfico por horário\n/top semana - Ranking semanal\n/membro @user - Perfil do usuário\n/inativos - Membros sem atividade\n\n🛠️ UTILIDADES:\n/lembrete 30m texto - Agendar lembrete\n/sorteio - Sortear membro\n/regras - Ver regras do grupo\n/comandos - Esta lista\n\n🔒 ADMIN:\n/warn @user motivo - Advertir\n/ban @user - Banir membro\n/clear 5 - Apagar mensagens\nfechar grupo / abrir grupo\n\n🤖 IA:\niMavy [pergunta] - Ativar IA`;
+}
+
+/**
+ * Gera atividade por horário
+ */
+function generateActivityChart() {
+    let chart = '📈 ATIVIDADE POR HORÁRIO\n\n';
+    
+    for (let hour = 0; hour < 24; hour++) {
+        const count = hourlyStats[hour] || 0;
+        const bars = '█'.repeat(Math.min(count / 5, 15));
+        chart += `${hour.toString().padStart(2, '0')}h: ${bars} (${count})\n`;
+    }
+    
+    return chart;
 }
 
 /**
@@ -242,6 +266,50 @@ export async function handleGroupMessages(sock, message) {
                 await sock.sendMessage(groupId, { 
                     text: `🎉 SORTEIO!\n\nVencedor: @${winnerData.name}\n🎆 Parabéns!`,
                     mentions: [winner]
+                });
+            }
+            return;
+        }
+        
+        // Comando de comandos
+        if (text.toLowerCase().includes('/comandos')) {
+            await sock.sendMessage(groupId, { text: getCommandsList() }, { quoted: message });
+            return;
+        }
+        
+        // Comando de atividade
+        if (text.toLowerCase().includes('/atividade')) {
+            const activityChart = generateActivityChart();
+            await sock.sendMessage(groupId, { text: activityChart }, { quoted: message });
+            return;
+        }
+        
+        // Comando de regras
+        if (text.toLowerCase().includes('/regras')) {
+            await sock.sendMessage(groupId, { 
+                text: `📜 REGRAS DO GRUPO\n\n${groupRules}\n\n⚠️ O descumprimento pode resultar em advertência ou remoção.`
+            }, { quoted: message });
+            return;
+        }
+        
+        // Comando warn (admin)
+        if (text.toLowerCase().startsWith('/warn ')) {
+            const mentioned = message.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+            if (mentioned && mentioned.length > 0) {
+                const targetUser = mentioned[0];
+                const reason = text.split(' ').slice(2).join(' ') || 'Sem motivo especificado';
+                
+                if (!warnings.has(targetUser)) {
+                    warnings.set(targetUser, { count: 0, reasons: [] });
+                }
+                
+                const userWarnings = warnings.get(targetUser);
+                userWarnings.count++;
+                userWarnings.reasons.push(reason);
+                
+                await sock.sendMessage(groupId, {
+                    text: `⚠️ ADVERTÊNCIA\n\nUsuário: @${messageCount.get(targetUser)?.name || 'Usuário'}\nMotivo: ${reason}\nTotal de advertências: ${userWarnings.count}`,
+                    mentions: [targetUser]
                 });
             }
             return;
