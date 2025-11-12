@@ -16,8 +16,9 @@ const bannedUsers = new Set(); // Set of banned userIds
 const reminders = new Map(); // {id: {time, message, groupId}}
 const spamDetection = new Map(); // {userId: {lastMessage, count, timestamp}}
 const welcomeEnabled = true;
-const groupRules = 'Seja respeitoso, não faça spam, mantenha o foco no desenvolvimento de IA.';
+const groupRules = ['Seja respeitoso', 'Não faça spam', 'Mantenha o foco no desenvolvimento de IA'];
 const newMembers = new Map(); // {userId: joinDate}
+const botAdmins = new Set([ADMIN_ID]); // Admins do bot
 
 // Dados temporais
 const dailyStats = new Map(); // {date: messageCount}
@@ -253,8 +254,144 @@ export async function handleGroupMessages(sock, message) {
         
         // Comando de comandos
         if (text.toLowerCase().includes('/comandos')) {
-            const comandos = `🤖 COMANDOS DISPONÍVEIS\n\n📊 ESTATÍSTICAS:\n/ranking - Top 10 membros\n/stats - Estatísticas gerais\n\n🛠️ UTILIDADES:\n/lembrete 30m texto - Agendar lembrete\n/sorteio - Sortear membro\n/comandos - Esta lista\n\n🔒 ADMIN:\nfechar grupo / abrir grupo\n\n🤖 IA:\niMavy [pergunta] - Ativar IA`;
+            const comandos = `🤖 COMANDOS DISPONÍVEIS\n\n📊 ESTATÍSTICAS:\n/ranking - Top 10 membros\n/stats - Estatísticas gerais\n/perfil @user - Perfil do membro\n/atividade - Gráfico de atividade\n\n🛠️ UTILIDADES:\n/lembrete 30m texto - Agendar lembrete\n/sorteio - Sortear membro\n/regras - Ver regras\n/admins - Lista de admins\n/fixar - Fixar mensagem\n\n🔒 ADMIN:\n/adicionarregra - Adicionar regra\n/addadmin @user - Adicionar admin\nfechar grupo / abrir grupo\n\n🤖 IA:\niMavy [pergunta] - Ativar IA`;
             await sock.sendMessage(groupId, { text: comandos }, { quoted: message });
+            return;
+        }
+        
+        // Comando fixar
+        if (text.toLowerCase().includes('/fixar')) {
+            if (message.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
+                try {
+                    await sock.sendMessage(groupId, {
+                        text: '📌 Mensagem fixada com sucesso!'
+                    });
+                } catch (error) {
+                    await sock.sendMessage(groupId, {
+                        text: '❌ Erro ao fixar mensagem. Verifique se o bot é admin.'
+                    });
+                }
+            } else {
+                await sock.sendMessage(groupId, {
+                    text: '⚠️ Responda a uma mensagem com /fixar para fixá-la'
+                });
+            }
+            return;
+        }
+        
+        // Comando perfil
+        if (text.toLowerCase().includes('/perfil')) {
+            const mentioned = message.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+            if (mentioned && mentioned.length > 0) {
+                const targetUser = mentioned[0];
+                const userData = messageCount.get(targetUser);
+                if (userData) {
+                    const warningData = warnings.get(targetUser);
+                    const warningCount = warningData ? warningData.count : 0;
+                    
+                    let profile = `👤 PERFIL: ${userData.name}\n\n`;
+                    profile += `💬 Total: ${userData.count} mensagens\n`;
+                    profile += `📅 Semana: ${userData.weeklyCount || 0} mensagens\n`;
+                    if (warningCount > 0) {
+                        profile += `⚠️ Advertências: ${warningCount}\n`;
+                    }
+                    
+                    await sock.sendMessage(groupId, { text: profile }, { quoted: message });
+                } else {
+                    await sock.sendMessage(groupId, { text: '❌ Usuário não encontrado no ranking.' });
+                }
+            } else {
+                await sock.sendMessage(groupId, { text: '⚠️ Use: /perfil @usuario' });
+            }
+            return;
+        }
+        
+        // Comando regras
+        if (text.toLowerCase().includes('/regras')) {
+            let rulesText = '📜 REGRAS DO GRUPO\n\n';
+            groupRules.forEach((rule, index) => {
+                rulesText += `${index + 1}. ${rule}\n`;
+            });
+            rulesText += '\n⚠️ O descumprimento pode resultar em advertência ou remoção.';
+            
+            await sock.sendMessage(groupId, { text: rulesText }, { quoted: message });
+            return;
+        }
+        
+        // Comando adicionar regra (admin)
+        if (text.toLowerCase().startsWith('/adicionarregra ')) {
+            if (botAdmins.has(senderId)) {
+                const newRule = text.substring(16).trim();
+                if (newRule) {
+                    groupRules.push(newRule);
+                    await sock.sendMessage(groupId, {
+                        text: `✅ Regra adicionada: "${newRule}"`
+                    });
+                } else {
+                    await sock.sendMessage(groupId, {
+                        text: '⚠️ Use: /adicionarregra [texto da regra]'
+                    });
+                }
+            } else {
+                await sock.sendMessage(groupId, {
+                    text: '❌ Apenas admins podem adicionar regras.'
+                });
+            }
+            return;
+        }
+        
+        // Comando atividade
+        if (text.toLowerCase().includes('/atividade')) {
+            let chart = '📈 ATIVIDADE POR HORÁRIO\n\n';
+            
+            for (let hour = 0; hour < 24; hour++) {
+                const count = hourlyStats[hour] || 0;
+                const bars = '█'.repeat(Math.min(Math.floor(count / 3), 10));
+                chart += `${hour.toString().padStart(2, '0')}h: ${bars} (${count})\n`;
+            }
+            
+            await sock.sendMessage(groupId, { text: chart }, { quoted: message });
+            return;
+        }
+        
+        // Comando admins
+        if (text.toLowerCase().includes('/admins')) {
+            let adminsList = '👑 ADMINISTRADORES DO BOT\n\n';
+            
+            for (const adminId of botAdmins) {
+                const adminData = messageCount.get(adminId);
+                const adminName = adminData ? adminData.name : 'Admin';
+                adminsList += `• ${adminName}\n`;
+            }
+            
+            await sock.sendMessage(groupId, { text: adminsList }, { quoted: message });
+            return;
+        }
+        
+        // Comando add admin (admin)
+        if (text.toLowerCase().startsWith('/addadmin')) {
+            if (botAdmins.has(senderId)) {
+                const mentioned = message.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+                if (mentioned && mentioned.length > 0) {
+                    const newAdmin = mentioned[0];
+                    botAdmins.add(newAdmin);
+                    const userData = messageCount.get(newAdmin);
+                    const userName = userData ? userData.name : 'Usuário';
+                    
+                    await sock.sendMessage(groupId, {
+                        text: `✅ ${userName} foi adicionado como administrador do bot!`,
+                        mentions: [newAdmin]
+                    });
+                } else {
+                    await sock.sendMessage(groupId, {
+                        text: '⚠️ Use: /addadmin @usuario'
+                    });
+                }
+            } else {
+                await sock.sendMessage(groupId, {
+                    text: '❌ Apenas admins podem adicionar outros admins.'
+                });
+            }
             return;
         }
         
