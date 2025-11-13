@@ -416,6 +416,33 @@ export async function handleGroupMessages(sock, message) {
             return;
         }
         
+        // Comando teste Supabase (admin)
+        if (text.toLowerCase().includes('/testdb')) {
+            if (botAdmins.has(senderId)) {
+                try {
+                    // Testar salvamento
+                    await saveMessageData('test_user', {
+                        name: 'Teste',
+                        count: 1,
+                        weeklyCount: 1
+                    });
+                    
+                    // Testar carregamento
+                    const loadedData = await loadMessageData();
+                    const totalUsers = loadedData.size;
+                    
+                    await sock.sendMessage(groupId, {
+                        text: `🗄️ TESTE SUPABASE\n\n✅ Conexão: OK\n📊 Usuários no DB: ${totalUsers}\n💾 Salvamento: OK\n📥 Carregamento: OK`
+                    });
+                } catch (error) {
+                    await sock.sendMessage(groupId, {
+                        text: `❌ ERRO SUPABASE\n\n${error.message}`
+                    });
+                }
+            }
+            return;
+        }
+        
         // Comandos administrativos
         if (text.toLowerCase().includes('fechar grupo') || text.toLowerCase().includes('/fechar')) {
             await sock.groupSettingUpdate(groupId, 'announcement');
