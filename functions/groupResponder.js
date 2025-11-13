@@ -8,7 +8,14 @@ import { saveMessageData, loadMessageData, saveGroupRules, loadGroupRules, saveW
 const TARGET_GROUP = process.env.TARGET_GROUP_ID || '120363420952651026@g.us';
 const BOT_TRIGGER = process.env.BOT_TRIGGER || 'iMavy';
 const ADMIN_ID = process.env.ADMIN_ID || '227349882745008@lid';
-const ALLOWED_GROUPS = [TARGET_GROUP];
+const ALLOWED_GROUPS = ['DESENVOLVIMENTO IA', 'PORTO BELO NEGÓCIOS 1', 'PORTO BELO NEGÓCIOS 2', 'PORTO BELO NEGÓCIOS 3', 'PORTO BELO NEGÓCIOS 4'];
+
+// Palavras-chave de cassino
+const CASINO_KEYWORDS = [
+    'bet', 'cassino', 'casino', 'apostas', 'fortune', 'tiger', 'mines', 'aviator',
+    'blaze', 'stake', 'betano', 'sportingbet', 'pixbet', 'bet365', 'jogo do bicho',
+    'roleta', 'blackjack', 'poker', 'slots', 'caça-níquel', 'bingo'
+];
 
 // Sistema de contagem de mensagens
 let messageCount = new Map(); // {userId: {name: string, count: number, weeklyCount: number, dailyMessages: [], hourlyStats: []}}
@@ -123,6 +130,20 @@ function detectSpam(userId, text) {
     return userSpam.count >= 3;
 }
 
+/**
+ * Verifica se usuário é admin do grupo WhatsApp
+ */
+async function isGroupAdmin(sock, groupId, userId) {
+    try {
+        const groupInfo = await sock.groupMetadata(groupId);
+        const participant = groupInfo.participants.find(p => p.id === userId);
+        return participant && (participant.admin === 'admin' || participant.admin === 'superadmin');
+    } catch (error) {
+        logger.error('Erro ao verificar admin:', error);
+        return false;
+    }
+}
+
 
 
 /**
@@ -157,11 +178,15 @@ export async function handleGroupMessages(sock, message) {
         
         if (!isGroup) return;
         
-        // Verificar se é o grupo correto
+        // Verificar se é um grupo permitido
         const groupInfo = await sock.groupMetadata(groupId);
         const groupName = groupInfo.subject;
         
-        if (groupName !== 'DESENVOLVIMENTO IA') {
+        const isAllowedGroup = ALLOWED_GROUPS.some(allowedGroup => 
+            groupName.includes(allowedGroup) || allowedGroup.includes(groupName)
+        );
+        
+        if (!isAllowedGroup) {
             logger.info(`Mensagem ignorada - grupo: ${groupName}`);
             return;
         }
@@ -204,6 +229,25 @@ export async function handleGroupMessages(sock, message) {
         if (!text) return;
         
         logger.info(`Mensagem do grupo DESENVOLVIMENTO IA: ${text}`);
+        
+        // Detectar links de cassino
+        const hasCasinoContent = CASINO_KEYWORDS.some(keyword => 
+            text.toLowerCase().includes(keyword.toLowerCase())
+        );
+        
+        if (hasCasinoContent) {
+            try {
+                await sock.sendMessage(groupId, {
+                    text: `🚫 @${senderName} conteúdo de jogos/apostas não é permitido no grupo!`,
+                    mentions: [senderId]
+                });
+                // Tentar deletar a mensagem
+                await sock.sendMessage(groupId, { delete: message.key });
+            } catch (error) {
+                logger.error('Erro ao deletar mensagem de cassino:', error);
+            }
+            return;
+        }
         
         // Anti-spam
         if (detectSpam(senderId, text)) {
@@ -272,9 +316,15 @@ export async function handleGroupMessages(sock, message) {
             return;
         }
         
-        // Comando de comandos
+        // Comando de comandos (apenas admins)
         if (text.toLowerCase().includes('/comandos')) {
-            const comandos = `🤖 COMANDOS DISPONÍVEIS\n\n📊 ESTATÍSTICAS:\n/ranking - Top 10 membros\n/stats - Estatísticas gerais\n/perfil @user - Perfil do membro\n/atividade - Gráfico de atividade\n\n🛠️ UTILIDADES:\n/lembrete 30m texto - Agendar lembrete\n/sorteio - Sortear membro\n/regras - Ver regras\n/admins - Lista de admins\n/fixar - Fixar mensagem\n\n🔒 ADMIN:\n/adicionarregra - Adicionar regra\n/addadmin @user - Adicionar admin\nfechar grupo / abrir grupo\n\n🤖 IA:\niMavy [pergunta] - Ativar IA`;
+            const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
+            if (!isAdmin) {
+                await sock.sendMessage(groupId, { text: '❌ Apenas administradores podem usar comandos.' });
+                return;
+            }
+            
+            const comandos = `🤖 COMANDOS ADMIN\n\n📊 ESTATÍSTICAS:\n/ranking - Top 10 membros\n/stats - Estatísticas gerais\n/perfil @user - Perfil do membro\n/atividade - Gráfico de atividade\n\n🛠️ UTILIDADES:\n/lembrete 30m texto - Agendar lembrete\n/sorteio - Sortear membro\n/admins - Lista de admins\n/fixar - Fixar mensagem\n/add @user - Adicionar membro\n/remove @user - Remover membro\n\n🔒 ADMIN:\n/adicionarregra - Adicionar regra\n/addadmin @user - Adicionar admin\nfechar grupo / abrir grupo\n\n🤖 IA:\niMavy [pergunta] - Ativar IA\n\n📄 TODOS:\n/regras - Ver regras (todos podem usar)`;
             await sock.sendMessage(groupId, { text: comandos }, { quoted: message });
             return;
         }
@@ -416,29 +466,91 @@ export async function handleGroupMessages(sock, message) {
             return;
         }
         
-        // Comando teste Supabase (admin)
-        if (text.toLowerCase().includes('/testdb')) {
-            if (botAdmins.has(senderId)) {
+        // Comando adicionar membro (admin)
+        if (text.toLowerCase().startsWith('/add ')) {
+            const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
+            if (!isAdmin) {
+                await sock.sendMessage(groupId, { text: '❌ Apenas administradores podem adicionar membros.' });
+                return;
+            }
+            
+            const phoneNumber = text.split(' ')[1];
+            if (phoneNumber) {
                 try {
-                    // Testar salvamento
-                    await saveMessageData('test_user', {
-                        name: 'Teste',
-                        count: 1,
-                        weeklyCount: 1
-                    });
-                    
-                    // Testar carregamento
-                    const loadedData = await loadMessageData();
-                    const totalUsers = loadedData.size;
-                    
+                    const formattedNumber = phoneNumber.replace(/\D/g, '') + '@s.whatsapp.net';
+                    await sock.groupParticipantsUpdate(groupId, [formattedNumber], 'add');
                     await sock.sendMessage(groupId, {
-                        text: `🗄️ TESTE SUPABASE\n\n✅ Conexão: OK\n📊 Usuários no DB: ${totalUsers}\n💾 Salvamento: OK\n📥 Carregamento: OK`
+                        text: `✅ Tentativa de adicionar ${phoneNumber} ao grupo.`
                     });
                 } catch (error) {
                     await sock.sendMessage(groupId, {
-                        text: `❌ ERRO SUPABASE\n\n${error.message}`
+                        text: `❌ Erro ao adicionar membro: ${error.message}`
                     });
                 }
+            } else {
+                await sock.sendMessage(groupId, {
+                    text: '⚠️ Use: /add 5511999999999'
+                });
+            }
+            return;
+        }
+        
+        // Comando remover membro (admin)
+        if (text.toLowerCase().startsWith('/remove ')) {
+            const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
+            if (!isAdmin) {
+                await sock.sendMessage(groupId, { text: '❌ Apenas administradores podem remover membros.' });
+                return;
+            }
+            
+            const mentioned = message.message?.extendedTextMessage?.contextInfo?.mentionedJid;
+            if (mentioned && mentioned.length > 0) {
+                try {
+                    await sock.groupParticipantsUpdate(groupId, mentioned, 'remove');
+                    await sock.sendMessage(groupId, {
+                        text: `✅ Membro removido do grupo.`,
+                        mentions: mentioned
+                    });
+                } catch (error) {
+                    await sock.sendMessage(groupId, {
+                        text: `❌ Erro ao remover membro: ${error.message}`
+                    });
+                }
+            } else {
+                await sock.sendMessage(groupId, {
+                    text: '⚠️ Use: /remove @usuario'
+                });
+            }
+            return;
+        }
+        
+        // Comando teste Supabase (admin)
+        if (text.toLowerCase().includes('/testdb')) {
+            const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
+            if (!isAdmin) {
+                await sock.sendMessage(groupId, { text: '❌ Apenas administradores podem usar este comando.' });
+                return;
+            }
+            
+            try {
+                // Testar salvamento
+                await saveMessageData('test_user', {
+                    name: 'Teste',
+                    count: 1,
+                    weeklyCount: 1
+                });
+                
+                // Testar carregamento
+                const loadedData = await loadMessageData();
+                const totalUsers = loadedData.size;
+                
+                await sock.sendMessage(groupId, {
+                    text: `🗄️ TESTE SUPABASE\n\n✅ Conexão: OK\n📊 Usuários no DB: ${totalUsers}\n💾 Salvamento: OK\n📥 Carregamento: OK`
+                });
+            } catch (error) {
+                await sock.sendMessage(groupId, {
+                    text: `❌ ERRO SUPABASE\n\n${error.message}`
+                });
             }
             return;
         }
