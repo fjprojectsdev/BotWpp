@@ -230,21 +230,33 @@ export async function handleGroupMessages(sock, message) {
         
         logger.info(`Mensagem do grupo DESENVOLVIMENTO IA: ${text}`);
         
-        // Detectar links de cassino
+        // Detectar links de cassino e remover usuário
         const hasCasinoContent = CASINO_KEYWORDS.some(keyword => 
             text.toLowerCase().includes(keyword.toLowerCase())
         );
         
         if (hasCasinoContent) {
             try {
+                // Deletar a mensagem
+                await sock.sendMessage(groupId, { delete: message.key });
+                
+                // Avisar sobre a remoção
                 await sock.sendMessage(groupId, {
-                    text: `🚫 @${senderName} conteúdo de jogos/apostas não é permitido no grupo!`,
+                    text: `🚫 @${senderName} foi removido por enviar conteúdo de jogos/apostas.`,
                     mentions: [senderId]
                 });
-                // Tentar deletar a mensagem
-                await sock.sendMessage(groupId, { delete: message.key });
+                
+                // Remover usuário do grupo
+                await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
+                
+                logger.info(`Usuário ${senderName} removido por conteúdo de cassino`);
             } catch (error) {
-                logger.error('Erro ao deletar mensagem de cassino:', error);
+                logger.error('Erro ao processar conteúdo de cassino:', error);
+                // Se não conseguir remover, pelo menos avisar
+                await sock.sendMessage(groupId, {
+                    text: `🚫 @${senderName} conteúdo de jogos/apostas não é permitido! Mensagem removida.`,
+                    mentions: [senderId]
+                });
             }
             return;
         }
@@ -324,7 +336,7 @@ export async function handleGroupMessages(sock, message) {
                 return;
             }
             
-            const comandos = `🤖 COMANDOS ADMIN\n\n📊 ESTATÍSTICAS:\n/ranking - Top 10 membros\n/stats - Estatísticas gerais\n/perfil @user - Perfil do membro\n/atividade - Gráfico de atividade\n\n🛠️ UTILIDADES:\n/lembrete 30m texto - Agendar lembrete\n/sorteio - Sortear membro\n/admins - Lista de admins\n/fixar - Fixar mensagem\n/add @user - Adicionar membro\n/remove @user - Remover membro\n\n🔒 ADMIN:\n/adicionarregra - Adicionar regra\n/addadmin @user - Adicionar admin\nfechar grupo / abrir grupo\n\n🤖 IA:\niMavy [pergunta] - Ativar IA\n\n📄 TODOS:\n/regras - Ver regras (todos podem usar)`;
+            const comandos = `🤖 COMANDOS ADMIN\n\n📊 ESTATÍSTICAS:\n/ranking - Top 10 membros\n/stats - Estatísticas gerais\n/perfil @user - Perfil do membro\n/atividade - Gráfico de atividade\n\n🛠️ UTILIDADES:\n/lembrete 30m texto - Agendar lembrete\n/sorteio - Sortear membro\n/admins - Lista de admins\n/fixar - Fixar mensagem\n\n🔒 ADMIN:\n/adicionarregra - Adicionar regra\n/addadmin @user - Adicionar admin\nfechar grupo / abrir grupo\n\n🤖 IA:\niMavy [pergunta] - Ativar IA\n\n📄 TODOS:\n/regras - Ver regras (todos podem usar)\n\n🚫 AUTOMÁTICO:\nRemove usuários que enviam conteúdo de cassino/apostas`;
             await sock.sendMessage(groupId, { text: comandos }, { quoted: message });
             return;
         }
@@ -466,63 +478,7 @@ export async function handleGroupMessages(sock, message) {
             return;
         }
         
-        // Comando adicionar membro (admin)
-        if (text.toLowerCase().startsWith('/add ')) {
-            const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
-            if (!isAdmin) {
-                await sock.sendMessage(groupId, { text: '❌ Apenas administradores podem adicionar membros.' });
-                return;
-            }
-            
-            const phoneNumber = text.split(' ')[1];
-            if (phoneNumber) {
-                try {
-                    const formattedNumber = phoneNumber.replace(/\D/g, '') + '@s.whatsapp.net';
-                    await sock.groupParticipantsUpdate(groupId, [formattedNumber], 'add');
-                    await sock.sendMessage(groupId, {
-                        text: `✅ Tentativa de adicionar ${phoneNumber} ao grupo.`
-                    });
-                } catch (error) {
-                    await sock.sendMessage(groupId, {
-                        text: `❌ Erro ao adicionar membro: ${error.message}`
-                    });
-                }
-            } else {
-                await sock.sendMessage(groupId, {
-                    text: '⚠️ Use: /add 5511999999999'
-                });
-            }
-            return;
-        }
-        
-        // Comando remover membro (admin)
-        if (text.toLowerCase().startsWith('/remove ')) {
-            const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
-            if (!isAdmin) {
-                await sock.sendMessage(groupId, { text: '❌ Apenas administradores podem remover membros.' });
-                return;
-            }
-            
-            const mentioned = message.message?.extendedTextMessage?.contextInfo?.mentionedJid;
-            if (mentioned && mentioned.length > 0) {
-                try {
-                    await sock.groupParticipantsUpdate(groupId, mentioned, 'remove');
-                    await sock.sendMessage(groupId, {
-                        text: `✅ Membro removido do grupo.`,
-                        mentions: mentioned
-                    });
-                } catch (error) {
-                    await sock.sendMessage(groupId, {
-                        text: `❌ Erro ao remover membro: ${error.message}`
-                    });
-                }
-            } else {
-                await sock.sendMessage(groupId, {
-                    text: '⚠️ Use: /remove @usuario'
-                });
-            }
-            return;
-        }
+
         
         // Comando teste Supabase (admin)
         if (text.toLowerCase().includes('/testdb')) {
