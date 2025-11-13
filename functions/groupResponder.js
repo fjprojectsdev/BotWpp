@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { generateAIResponse } from './openAI.js';
 import { logger } from '../utils/logger.js';
 import { validateInput, checkRateLimit, validateGroup } from '../utils/validator.js';
+import { saveMessageData, loadMessageData, saveGroupRules, loadGroupRules, saveWarnings } from '../utils/supabase.js';
 
 const TARGET_GROUP = process.env.TARGET_GROUP_ID || '120363420952651026@g.us';
 const BOT_TRIGGER = process.env.BOT_TRIGGER || 'iMavy';
@@ -10,15 +11,29 @@ const ADMIN_ID = process.env.ADMIN_ID || '227349882745008@lid';
 const ALLOWED_GROUPS = [TARGET_GROUP];
 
 // Sistema de contagem de mensagens
-const messageCount = new Map(); // {userId: {name: string, count: number, weeklyCount: number, dailyMessages: [], hourlyStats: []}}
+let messageCount = new Map(); // {userId: {name: string, count: number, weeklyCount: number, dailyMessages: [], hourlyStats: []}}
 const warnings = new Map(); // {userId: {count, reasons: []}}
 const bannedUsers = new Set(); // Set of banned userIds
 const reminders = new Map(); // {id: {time, message, groupId}}
 const spamDetection = new Map(); // {userId: {lastMessage, count, timestamp}}
 const welcomeEnabled = true;
-const groupRules = ['Seja respeitoso', 'Não faça spam', 'Mantenha o foco no desenvolvimento de IA'];
+let groupRules = ['Seja respeitoso', 'Não faça spam', 'Mantenha o foco no desenvolvimento de IA'];
 const newMembers = new Map(); // {userId: joinDate}
 const botAdmins = new Set([ADMIN_ID]); // Admins do bot
+
+// Inicializar dados do Supabase
+async function initializeData() {
+    try {
+        messageCount = await loadMessageData();
+        groupRules = await loadGroupRules();
+        logger.info('Dados carregados do Supabase com sucesso');
+    } catch (error) {
+        logger.error('Erro ao carregar dados do Supabase:', error);
+    }
+}
+
+// Inicializar na primeira execução
+initializeData();
 
 // Dados temporais
 const dailyStats = new Map(); // {date: messageCount}
@@ -181,6 +196,11 @@ export async function handleGroupMessages(sock, message) {
         // Atualizar estatísticas horárias
         hourlyStats[hour]++;
         
+        // Salvar no Supabase a cada 10 mensagens
+        if (userData.count % 10 === 0) {
+            await saveMessageData(senderId, userData);
+        }
+        
         if (!text) return;
         
         logger.info(`Mensagem do grupo DESENVOLVIMENTO IA: ${text}`);
@@ -324,6 +344,7 @@ export async function handleGroupMessages(sock, message) {
                 const newRule = text.substring(16).trim();
                 if (newRule) {
                     groupRules.push(newRule);
+                    await saveGroupRules(groupRules);
                     await sock.sendMessage(groupId, {
                         text: `✅ Regra adicionada: "${newRule}"`
                     });
