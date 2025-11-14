@@ -592,15 +592,7 @@ export async function handleGroupMessages(sock, message) {
         
         // Comando regras
         if (text.toLowerCase().includes('/regras')) {
-            let rulesText = '';
-            
-            // Regras específicas por grupo
-            if (groupName.includes('DESENVOLVIMENTO IA')) {
-                rulesText = 'Este grupo não possui regras específicas.';
-            } else {
-                // Regras do Porto Belo para todos os outros grupos
-                rulesText = groupRules.join('\n');
-            }
+            const rulesText = groupRules.join('\n');
             
             await sock.sendMessage(groupId, { text: rulesText }, { quoted: message });
             return;
