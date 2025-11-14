@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import makeWASocket, { DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion, getContentType } from "baileys";
 import qrcode from "qrcode-terminal";
-import { handleGroupMessages } from './functions/groupResponder.js';
+import { handleGroupMessages, setupScheduledTasks } from './functions/groupResponder.js';
 import { scheduleGroupMessages } from './functions/scheduler.js';
 import { logger } from './utils/logger.js';
 import { validateInput } from './utils/validator.js';
@@ -69,6 +69,7 @@ async function startBot() {
                 if (connection === 'open') {
                     logger.success('Conectado ao WhatsApp com sucesso');
                     scheduleGroupMessages(sock);
+                    setupScheduledTasks(sock); // Configurar agendamentos automáticos
                 }
                 
                 if (connection === 'close') {

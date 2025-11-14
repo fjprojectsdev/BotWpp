@@ -4,6 +4,7 @@ import { generateAIResponse } from './openAI.js';
 import { logger } from '../utils/logger.js';
 import { validateInput, checkRateLimit, validateGroup } from '../utils/validator.js';
 import { saveMessageData, loadMessageData, saveGroupRules, loadGroupRules, saveWarnings } from '../utils/supabase.js';
+import schedule from 'node-schedule';
 
 const TARGET_GROUP = process.env.TARGET_GROUP_ID || '120363420952651026@g.us';
 const BOT_TRIGGER = process.env.BOT_TRIGGER || 'iMavy';
@@ -56,6 +57,109 @@ async function initializeData() {
     } catch (error) {
         logger.error('Erro ao carregar dados do Supabase:', error);
         dataLoaded = true; // Continuar mesmo com erro
+    }
+}
+
+// Mensagens de saudação
+const CLOSE_MESSAGE = `🌙  *Grupo fechado!* 🌙
+
+O horário de descanso chegou 😴✨
+
+Mensagens estarão desativadas até às 07:00 da manhã. (Horário de Brasília)
+
+Aproveite para recarregar as energias 🔋💤
+
+Nos vemos amanhã, Deus abençoe a todos! 🙏🏻✨
+
+> consulte as regras, digitando /regras no chat.`;
+
+const OPEN_MESSAGE = `☀️ *Bom dia, pessoal!* ☀️
+
+🔓 O grupo foi reaberto e fechará novamente às 23:00 horário de Brasília.
+
+Desejamos a todos um ótimo início de dia 💫
+
+Vamos com foco, energia positiva e boas conversas 💬✨
+
+> consulte as regras, digitando /regras no chat.`;
+
+// Variável para armazenar referência do socket
+let globalSock = null;
+
+/**
+ * Configura agendamentos automáticos
+ */
+function setupScheduledTasks(sock) {
+    globalSock = sock;
+    
+    // Fechar grupo às 23:00 (horário de Brasília)
+    schedule.scheduleJob('0 23 * * *', async () => {
+        await closeAllGroups();
+    });
+    
+    // Abrir grupo às 07:00 (horário de Brasília)
+    schedule.scheduleJob('0 7 * * *', async () => {
+        await openAllGroups();
+    });
+    
+    logger.info('Agendamentos configurados: Fechar 23:00, Abrir 07:00 (Horário de Brasília)');
+}
+
+/**
+ * Fecha todos os grupos permitidos
+ */
+async function closeAllGroups() {
+    if (!globalSock) return;
+    
+    try {
+        // Obter lista de grupos
+        const groups = await globalSock.groupFetchAllParticipating();
+        
+        for (const [groupId, groupInfo] of Object.entries(groups)) {
+            const groupName = groupInfo.subject;
+            
+            // Verificar se é um grupo permitido
+            const isAllowedGroup = ALLOWED_GROUPS.some(allowedGroup => 
+                groupName.includes(allowedGroup) || allowedGroup.includes(groupName)
+            );
+            
+            if (isAllowedGroup) {
+                await globalSock.groupSettingUpdate(groupId, 'announcement');
+                await globalSock.sendMessage(groupId, { text: CLOSE_MESSAGE });
+                logger.info(`Grupo fechado automaticamente: ${groupName}`);
+            }
+        }
+    } catch (error) {
+        logger.error('Erro ao fechar grupos:', error);
+    }
+}
+
+/**
+ * Abre todos os grupos permitidos
+ */
+async function openAllGroups() {
+    if (!globalSock) return;
+    
+    try {
+        // Obter lista de grupos
+        const groups = await globalSock.groupFetchAllParticipating();
+        
+        for (const [groupId, groupInfo] of Object.entries(groups)) {
+            const groupName = groupInfo.subject;
+            
+            // Verificar se é um grupo permitido
+            const isAllowedGroup = ALLOWED_GROUPS.some(allowedGroup => 
+                groupName.includes(allowedGroup) || allowedGroup.includes(groupName)
+            );
+            
+            if (isAllowedGroup) {
+                await globalSock.groupSettingUpdate(groupId, 'not_announcement');
+                await globalSock.sendMessage(groupId, { text: OPEN_MESSAGE });
+                logger.info(`Grupo aberto automaticamente: ${groupName}`);
+            }
+        }
+    } catch (error) {
+        logger.error('Erro ao abrir grupos:', error);
     }
 }
 
@@ -191,6 +295,9 @@ async function handleAdminCommand(sock, message, text, groupId, senderId) {
 /**
  * Manipula mensagens apenas do grupo DESENVOLVIMENTO IA
  */
+// Exportar função de configuração
+export { setupScheduledTasks };
+
 export async function handleGroupMessages(sock, message) {
     try {
         // Aguardar carregamento dos dados
