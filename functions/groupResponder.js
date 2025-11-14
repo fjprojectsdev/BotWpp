@@ -39,7 +39,25 @@ const bannedUsers = new Set(); // Set of banned userIds
 const reminders = new Map(); // {id: {time, message, groupId}}
 const spamDetection = new Map(); // {userId: {lastMessage, count, timestamp}}
 const welcomeEnabled = true;
-let groupRules = ['Seja respeitoso', 'Não faça spam', 'Mantenha o foco no desenvolvimento de IA'];
+let groupRules = [
+    '*Bem-vindo ao Porto Belo Negócios (1,2,3,4)!*',
+    '',
+    'Grupo exclusivo para moradores e comércios locais dos condomínios Porto Belo 1, 2, 3 e 4 anunciarem:',
+    '',
+    '- Produtos à venda',
+    '- Serviços e talentos locais', 
+    '- Promoções e parcerias',
+    '',
+    '*_Objetivo: Fortalecer o comércio entre vizinhos!_*',
+    '',
+    '*Regras:*',
+    '- Sem links suspeitos ou de Cassinos',
+    '- Respeito em primeiro lugar',
+    '- Nada de correntes ou política',
+    '- Foco em vendas e oportunidades reais',
+    '',
+    '*Link do Grupo:* https://chat.whatsapp.com/Czqzp6OZcD49z2NQmvqXj1'
+];
 const newMembers = new Map(); // {userId: joinDate}
 const botAdmins = new Set([ADMIN_ID]); // Admins do bot
 
@@ -553,11 +571,8 @@ export async function handleGroupMessages(sock, message) {
         
         // Comando regras
         if (text.toLowerCase().includes('/regras')) {
-            let rulesText = '📜 REGRAS DO GRUPO\n\n';
-            groupRules.forEach((rule, index) => {
-                rulesText += `${index + 1}. ${rule}\n`;
-            });
-            rulesText += '\n⚠️ O descumprimento pode resultar em advertência ou remoção.';
+            let rulesText = groupRules.join('\n');
+            rulesText += '\n\n⚠️ O descumprimento pode resultar em advertência ou remoção.';
             
             await sock.sendMessage(groupId, { text: rulesText }, { quoted: message });
             return;

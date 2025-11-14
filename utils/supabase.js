@@ -88,7 +88,25 @@ export async function loadGroupRules() {
             .single();
         
         if (error) throw error;
-        return data?.rules || ['Seja respeitoso', 'Não faça spam', 'Mantenha o foco no desenvolvimento de IA'];
+        return data?.rules || [
+            '*Bem-vindo ao Porto Belo Negócios (1,2,3,4)!*',
+            '',
+            'Grupo exclusivo para moradores e comércios locais dos condomínios Porto Belo 1, 2, 3 e 4 anunciarem:',
+            '',
+            '- Produtos à venda',
+            '- Serviços e talentos locais', 
+            '- Promoções e parcerias',
+            '',
+            '*_Objetivo: Fortalecer o comércio entre vizinhos!_*',
+            '',
+            '*Regras:*',
+            '- Sem links suspeitos ou de Cassinos',
+            '- Respeito em primeiro lugar',
+            '- Nada de correntes ou política',
+            '- Foco em vendas e oportunidades reais',
+            '',
+            '*Link do Grupo:* https://chat.whatsapp.com/Czqzp6OZcD49z2NQmvqXj1'
+        ];
     } catch (error) {
         console.error('Erro ao carregar regras:', error);
         return ['Seja respeitoso', 'Não faça spam', 'Mantenha o foco no desenvolvimento de IA'];
