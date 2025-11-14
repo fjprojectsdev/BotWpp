@@ -19,10 +19,10 @@ const CASINO_KEYWORDS = [
     'aposta', 'apostas', 'apostar', 'joguinho', 'joguinhos', 'joguinho do tigrinho', 'joguetes', 'renda fácil', 'renda extra', 'dinheiro fácil', 'lucrar', 'lucrando', 'método novo', 'estratégia', 'estratégia secreta', 'prova de pagamento', 'pagou 200', 'rendeu 500', 'saquei agora', 'ganhei hoje', 'vem lucrar', 'vem ganhar', 'tá pagando', 'tá dando bom', 'ta pagando', 'ta dando bom', 'venham apostar', 'venham jogar', 'entre na plataforma', 'plataforma', 'plataforma nova', 'plataforma nova lançamento', 'nova plataforma', 'plataforma de aposta', 'plataforma pagando', 'plataforma quente', 'lançamento quente', 'novidade de aposta',
     
     // Termos de jogos
-    'slot', 'slots', 'wild', 'free spin', 'free spins', 'spin', 'giros', 'giro', 'giros grátis', 'bônus', 'bonus', 'bônus diário', 'bônus de boas-vindas', 'cashback', 'gift', 'double', 'explosão', 'farmando', 'farmar', 'virada de chave',
+    'slot', 'slots', 'wild', 'free spin', 'free spins', 'spin', 'giros', 'giro', 'giros grátis', 'giros gratis', 'bônus', 'bonus', 'bônus diário', 'bônus de boas-vindas', 'cashback', 'gift', 'double', 'explosão', 'farmando', 'farmar', 'virada de chave', 'roleta', 'ta dando bonus na roleta', 'ta dando bônus na roleta',
     
     // Tiger/Tigrinho
-    'tigrinho', 't1grinho', 'tigre', 'tiger', 'tiger tá pagando', 'tiger ta pagando', 'tiger tá dando bom', 'tiger ta dando bom',
+    'tigrinho', 't1grinho', 'tigre', 'tiger', 'tiger tá pagando', 'tiger ta pagando', 'tiger tá dando bom', 'tiger ta dando bom', 'ta pagando',
     
     // Termos financeiros suspeitos
     'total de ganhos', 'ganhos', 'rodada', 'rodada da fortuna', 'jogo da fortuna', 'jogo selvagem', 'casino slots', 'pix caindo', 'só clicar', 'joga aí', 'só entrar', 'alto lucro', 'alta lucratividade', 'pagando muito', 'pagando rápido',
