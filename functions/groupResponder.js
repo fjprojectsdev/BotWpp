@@ -42,14 +42,20 @@ let groupRules = ['Seja respeitoso', 'Não faça spam', 'Mantenha o foco no dese
 const newMembers = new Map(); // {userId: joinDate}
 const botAdmins = new Set([ADMIN_ID]); // Admins do bot
 
+// Variável para controlar se os dados foram carregados
+let dataLoaded = false;
+
 // Inicializar dados do Supabase
 async function initializeData() {
     try {
+        logger.info('Carregando dados do Supabase...');
         messageCount = await loadMessageData();
         groupRules = await loadGroupRules();
-        logger.info('Dados carregados do Supabase com sucesso');
+        dataLoaded = true;
+        logger.info(`Dados carregados com sucesso! ${messageCount.size} usuários no ranking.`);
     } catch (error) {
         logger.error('Erro ao carregar dados do Supabase:', error);
+        dataLoaded = true; // Continuar mesmo com erro
     }
 }
 
@@ -187,6 +193,12 @@ async function handleAdminCommand(sock, message, text, groupId, senderId) {
  */
 export async function handleGroupMessages(sock, message) {
     try {
+        // Aguardar carregamento dos dados
+        if (!dataLoaded) {
+            logger.info('Aguardando carregamento dos dados...');
+            await initializeData();
+        }
+        
         const groupId = message.key.remoteJid;
         const isGroup = groupId.endsWith('@g.us');
         
@@ -235,9 +247,10 @@ export async function handleGroupMessages(sock, message) {
         // Atualizar estatísticas horárias
         hourlyStats[hour]++;
         
-        // Salvar no Supabase a cada 10 mensagens
-        if (userData.count % 10 === 0) {
+        // Salvar no Supabase a cada 5 mensagens para maior segurança
+        if (userData.count % 5 === 0) {
             await saveMessageData(senderId, userData);
+            logger.info(`Dados salvos para ${senderName} - ${userData.count} mensagens`);
         }
         
         if (!text) return;
@@ -548,6 +561,32 @@ export async function handleGroupMessages(sock, message) {
             return;
         }
         
+        // Comando salvar dados (admin)
+        if (text.toLowerCase().includes('/salvar')) {
+            const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
+            if (!isAdmin) {
+                await sock.sendMessage(groupId, { text: '❌ Apenas administradores podem usar este comando.' });
+                return;
+            }
+            
+            try {
+                let saved = 0;
+                for (const [userId, userData] of messageCount.entries()) {
+                    await saveMessageData(userId, userData);
+                    saved++;
+                }
+                
+                await sock.sendMessage(groupId, {
+                    text: `✅ BACKUP COMPLETO\n\n💾 ${saved} usuários salvos no Supabase\n🔄 Dados sincronizados com sucesso!`
+                });
+            } catch (error) {
+                await sock.sendMessage(groupId, {
+                    text: `❌ Erro ao salvar: ${error.message}`
+                });
+            }
+            return;
+        }
+        
         // Comando teste Supabase (admin)
         if (text.toLowerCase().includes('/testdb')) {
             const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
@@ -557,19 +596,13 @@ export async function handleGroupMessages(sock, message) {
             }
             
             try {
-                // Testar salvamento
-                await saveMessageData('test_user', {
-                    name: 'Teste',
-                    count: 1,
-                    weeklyCount: 1
-                });
-                
                 // Testar carregamento
                 const loadedData = await loadMessageData();
                 const totalUsers = loadedData.size;
+                const currentUsers = messageCount.size;
                 
                 await sock.sendMessage(groupId, {
-                    text: `🗄️ TESTE SUPABASE\n\n✅ Conexão: OK\n📊 Usuários no DB: ${totalUsers}\n💾 Salvamento: OK\n📥 Carregamento: OK`
+                    text: `🗄️ STATUS SUPABASE\n\n✅ Conexão: OK\n📊 Usuários no DB: ${totalUsers}\n💻 Usuários em memória: ${currentUsers}\n🔄 Dados carregados: ${dataLoaded ? 'SIM' : 'NÃO'}`
                 });
             } catch (error) {
                 await sock.sendMessage(groupId, {
