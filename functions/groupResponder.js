@@ -10,11 +10,15 @@ const BOT_TRIGGER = process.env.BOT_TRIGGER || 'iMavy';
 const ADMIN_ID = process.env.ADMIN_ID || '227349882745008@lid';
 const ALLOWED_GROUPS = ['DESENVOLVIMENTO IA', 'PORTO BELO NEGÓCIOS 1', 'PORTO BELO NEGÓCIOS 2', 'PORTO BELO NEGÓCIOS 3', 'PORTO BELO NEGÓCIOS 4'];
 
-// Palavras-chave de cassino
+// Palavras-chave de cassino (detecção ampliada)
 const CASINO_KEYWORDS = [
-    'bet', 'cassino', 'casino', 'apostas', 'fortune', 'tiger', 'mines', 'aviator',
+    'bet', 'cassino', 'casino', 'apostas', 'aposta', 'fortune', 'tiger', 'mines', 'aviator',
     'blaze', 'stake', 'betano', 'sportingbet', 'pixbet', 'bet365', 'jogo do bicho',
-    'roleta', 'blackjack', 'poker', 'slots', 'caça-níquel', 'bingo'
+    'roleta', 'blackjack', 'poker', 'slots', 'caça-níquel', 'bingo', 'fortune tiger',
+    'tigre', 'tigre da sorte', 'ganhar dinheiro', 'renda extra', 'investimento',
+    'lucro garantido', 'oportunidade', 'ganhos', 'multiplicar', 'dobrar dinheiro',
+    'casa de apostas', 'plataforma', 'jogo online', 'cassino online', 'bet ', ' bet',
+    'esporte bet', 'casa de aposta', 'link na bio', 'chama no pv', 'pv para link'
 ];
 
 // Sistema de contagem de mensagens
@@ -230,33 +234,49 @@ export async function handleGroupMessages(sock, message) {
         
         logger.info(`Mensagem do grupo DESENVOLVIMENTO IA: ${text}`);
         
-        // Detectar links de cassino e remover usuário
-        const hasCasinoContent = CASINO_KEYWORDS.some(keyword => 
-            text.toLowerCase().includes(keyword.toLowerCase())
+        // Detectar conteúdo de cassino/apostas (DETECÇÃO RIGOROSA)
+        const textLower = text.toLowerCase();
+        
+        // Verificar palavras-chave
+        const hasCasinoKeyword = CASINO_KEYWORDS.some(keyword => 
+            textLower.includes(keyword.toLowerCase())
         );
         
-        if (hasCasinoContent) {
+        // Verificar URLs suspeitas
+        const hasSuspiciousUrl = /\b(bet|cassino|casino|blaze|stake|fortune|tiger)\w*\.(com|net|org|br|co)/i.test(text);
+        
+        // Verificar padrões de spam
+        const hasSpamPattern = /\b(ganhar dinheiro|renda extra|lucro garantido|chama no pv|link na bio)\b/i.test(text);
+        
+        if (hasCasinoKeyword || hasSuspiciousUrl || hasSpamPattern) {
             try {
-                // Deletar a mensagem
-                await sock.sendMessage(groupId, { delete: message.key });
+                logger.warn(`CONTEÚDO DETECTADO - Usuário: ${senderName}, Texto: ${text}`);
                 
-                // Avisar sobre a remoção
-                await sock.sendMessage(groupId, {
-                    text: `🚫 @${senderName} foi removido por enviar conteúdo de jogos/apostas.`,
-                    mentions: [senderId]
-                });
+                // Deletar a mensagem primeiro
+                await sock.sendMessage(groupId, { delete: message.key });
                 
                 // Remover usuário do grupo
                 await sock.groupParticipantsUpdate(groupId, [senderId], 'remove');
                 
-                logger.info(`Usuário ${senderName} removido por conteúdo de cassino`);
-            } catch (error) {
-                logger.error('Erro ao processar conteúdo de cassino:', error);
-                // Se não conseguir remover, pelo menos avisar
+                // Avisar sobre a remoção
                 await sock.sendMessage(groupId, {
-                    text: `🚫 @${senderName} conteúdo de jogos/apostas não é permitido! Mensagem removida.`,
-                    mentions: [senderId]
+                    text: `🚫 ${senderName} foi removido automaticamente por violar as regras do grupo (conteúdo de jogos/apostas/spam).`
                 });
+                
+                logger.info(`✅ Usuário ${senderName} (${senderId}) removido por conteúdo proibido`);
+                
+            } catch (error) {
+                logger.error('Erro ao processar conteúdo proibido:', error);
+                
+                // Tentar pelo menos avisar se não conseguir remover
+                try {
+                    await sock.sendMessage(groupId, {
+                        text: `⚠️ ATENÇÃO: Conteúdo proibido detectado de @${senderName}. Admins, removam manualmente.`,
+                        mentions: [senderId]
+                    });
+                } catch (e) {
+                    logger.error('Erro ao enviar aviso:', e);
+                }
             }
             return;
         }
@@ -481,6 +501,29 @@ export async function handleGroupMessages(sock, message) {
 
         
 
+        
+        // Comando teste detecção (admin)
+        if (text.toLowerCase().startsWith('/testdetect ')) {
+            const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
+            if (!isAdmin) {
+                await sock.sendMessage(groupId, { text: '❌ Apenas administradores podem usar este comando.' });
+                return;
+            }
+            
+            const testText = text.substring(12).toLowerCase();
+            const hasKeyword = CASINO_KEYWORDS.some(keyword => testText.includes(keyword.toLowerCase()));
+            const hasUrl = /\b(bet|cassino|casino|blaze|stake|fortune|tiger)\w*\.(com|net|org|br|co)/i.test(testText);
+            const hasSpam = /\b(ganhar dinheiro|renda extra|lucro garantido|chama no pv|link na bio)\b/i.test(testText);
+            
+            let result = `🔍 TESTE DE DETECÇÃO\n\nTexto: "${testText}"\n\n`;
+            result += `🎯 Palavra-chave: ${hasKeyword ? '✅ DETECTADO' : '❌ Não detectado'}\n`;
+            result += `🔗 URL suspeita: ${hasUrl ? '✅ DETECTADO' : '❌ Não detectado'}\n`;
+            result += `📢 Padrão spam: ${hasSpam ? '✅ DETECTADO' : '❌ Não detectado'}\n\n`;
+            result += `🚨 Ação: ${(hasKeyword || hasUrl || hasSpam) ? 'REMOVERIA O USUÁRIO' : 'Mensagem permitida'}`;
+            
+            await sock.sendMessage(groupId, { text: result }, { quoted: message });
+            return;
+        }
         
         // Comando teste Supabase (admin)
         if (text.toLowerCase().includes('/testdb')) {
