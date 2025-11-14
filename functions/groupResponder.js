@@ -10,15 +10,25 @@ const BOT_TRIGGER = process.env.BOT_TRIGGER || 'iMavy';
 const ADMIN_ID = process.env.ADMIN_ID || '227349882745008@lid';
 const ALLOWED_GROUPS = ['DESENVOLVIMENTO IA', 'PORTO BELO NEGÓCIOS 1', 'PORTO BELO NEGÓCIOS 2', 'PORTO BELO NEGÓCIOS 3', 'PORTO BELO NEGÓCIOS 4'];
 
-// Palavras-chave de cassino (detecção ampliada)
+// LISTA COMPLETA - FILTRO DE CASSINOS / APOSTAS / SPAM
 const CASINO_KEYWORDS = [
-    'bet', 'cassino', 'casino', 'apostas', 'aposta', 'fortune', 'tiger', 'mines', 'aviator',
-    'blaze', 'stake', 'betano', 'sportingbet', 'pixbet', 'bet365', 'jogo do bicho',
-    'roleta', 'blackjack', 'poker', 'slots', 'caça-níquel', 'bingo', 'fortune tiger',
-    'tigre', 'tigre da sorte', 'ganhar dinheiro', 'renda extra', 'investimento',
-    'lucro garantido', 'oportunidade', 'ganhos', 'multiplicar', 'dobrar dinheiro',
-    'casa de apostas', 'plataforma', 'jogo online', 'cassino online', 'bet ', ' bet',
-    'esporte bet', 'casa de aposta', 'link na bio', 'chama no pv', 'pv para link'
+    // Sites de apostas
+    'bet', 'bet365', 'bet 365', 'betano', 'betnacional', 'pixbet', 'blaze', 'bl4ze', 'betfair', 'sportingbet', 'parimatch', '1xbet', '1x bet', 'bet7k', 'bet 7k', 'betmaster', 'stake', 'betsul', 'brabet', 'vibeplay', 'fortuna play', 'millionaire', 'casino', 'cassino', 'casa de aposta', 'casa de apostas', 'cass1no', 'casin0', 'cas1no',
+    
+    // Termos de apostas e spam
+    'aposta', 'apostas', 'apostar', 'joguinho', 'joguinhos', 'joguinho do tigrinho', 'joguetes', 'renda fácil', 'renda extra', 'dinheiro fácil', 'lucrar', 'lucrando', 'método novo', 'estratégia', 'estratégia secreta', 'prova de pagamento', 'pagou 200', 'rendeu 500', 'saquei agora', 'ganhei hoje', 'vem lucrar', 'vem ganhar', 'tá pagando', 'tá dando bom', 'ta pagando', 'ta dando bom', 'venham apostar', 'venham jogar', 'entre na plataforma', 'plataforma', 'plataforma nova', 'plataforma nova lançamento', 'nova plataforma', 'plataforma de aposta', 'plataforma pagando', 'plataforma quente', 'lançamento quente', 'novidade de aposta',
+    
+    // Termos de jogos
+    'slot', 'slots', 'wild', 'free spin', 'free spins', 'spin', 'giros', 'giro', 'giros grátis', 'bônus', 'bonus', 'bônus diário', 'bônus de boas-vindas', 'cashback', 'gift', 'double', 'explosão', 'farmando', 'farmar', 'virada de chave',
+    
+    // Tiger/Tigrinho
+    'tigrinho', 't1grinho', 'tigre', 'tiger', 'tiger tá pagando', 'tiger ta pagando', 'tiger tá dando bom', 'tiger ta dando bom',
+    
+    // Termos financeiros suspeitos
+    'total de ganhos', 'ganhos', 'rodada', 'rodada da fortuna', 'jogo da fortuna', 'jogo selvagem', 'casino slots', 'pix caindo', 'só clicar', 'joga aí', 'só entrar', 'alto lucro', 'alta lucratividade', 'pagando muito', 'pagando rápido',
+    
+    // Afiliados
+    'afiliado', 'afiliados', 'afiliacao', 'affiliação'
 ];
 
 // Sistema de contagem de mensagens
@@ -242,11 +252,24 @@ export async function handleGroupMessages(sock, message) {
             textLower.includes(keyword.toLowerCase())
         );
         
-        // Verificar URLs suspeitas
-        const hasSuspiciousUrl = /\b(bet|cassino|casino|blaze|stake|fortune|tiger)\w*\.(com|net|org|br|co)/i.test(text);
+        // Verificar URLs suspeitas (padrões ampliados)
+        const hasSuspiciousUrl = (
+            /\b(bet|cassino|casino|blaze|stake|fortune|tiger)\w*\.(com|net|org|br|co)/i.test(text) ||
+            /7075a2/i.test(text) ||
+            /\.(cc|xyz|site|win|winbet|bet|casino|slots|365)\b/i.test(text) ||
+            /https?:\/\/(bet|blaze|7)/i.test(text) ||
+            /https?:\/\/t\.me\//i.test(text) ||
+            /\?pid=/i.test(text) ||
+            /link suspeito|link encurtado/i.test(text)
+        );
         
-        // Verificar padrões de spam
-        const hasSpamPattern = /\b(ganhar dinheiro|renda extra|lucro garantido|chama no pv|link na bio)\b/i.test(text);
+        // Verificar padrões de spam (ampliado)
+        const hasSpamPattern = (
+            /\b(ganhar dinheiro|renda extra|lucro garantido|chama no pv|link na bio)\b/i.test(text) ||
+            /\b(pix caindo|só clicar|joga aí|só entrar|alto lucro|alta lucratividade)\b/i.test(text) ||
+            /\b(pagando muito|pagando rápido|tá pagando|ta pagando|vem lucrar|vem ganhar)\b/i.test(text) ||
+            /\b(prova de pagamento|saquei agora|ganhei hoje|rendeu \d+|pagou \d+)\b/i.test(text)
+        );
         
         if (hasCasinoKeyword || hasSuspiciousUrl || hasSpamPattern) {
             try {
