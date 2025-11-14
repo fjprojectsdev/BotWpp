@@ -66,15 +66,33 @@ let dataLoaded = false;
 
 // Inicializar dados do Supabase
 async function initializeData() {
+    if (dataLoaded) return;
+    
     try {
-        logger.info('Carregando dados do Supabase...');
-        messageCount = await loadMessageData();
-        groupRules = await loadGroupRules();
+        logger.info('🔄 CARREGANDO DADOS DO SUPABASE...');
+        
+        // Forçar carregamento completo
+        const loadedData = await loadMessageData();
+        const loadedRules = await loadGroupRules();
+        
+        // Limpar dados atuais
+        messageCount.clear();
+        
+        // Carregar dados do banco
+        for (const [userId, userData] of loadedData.entries()) {
+            messageCount.set(userId, userData);
+        }
+        
+        // Atualizar regras
+        groupRules.length = 0;
+        groupRules.push(...loadedRules);
+        
         dataLoaded = true;
-        logger.info(`Dados carregados com sucesso! ${messageCount.size} usuários no ranking.`);
+        logger.info(`✅ DADOS CARREGADOS! ${messageCount.size} usuários no ranking`);
+        
     } catch (error) {
-        logger.error('Erro ao carregar dados do Supabase:', error);
-        dataLoaded = true; // Continuar mesmo com erro
+        logger.error('❌ Erro ao carregar dados:', error);
+        dataLoaded = true;
     }
 }
 
@@ -181,8 +199,11 @@ async function openAllGroups() {
     }
 }
 
-// Inicializar na primeira execução
-initializeData();
+// Forçar inicialização imediata
+(async () => {
+    await initializeData();
+    logger.info('🚀 Bot inicializado com dados do Supabase');
+})();
 
 // Dados temporais
 const dailyStats = new Map(); // {date: messageCount}
