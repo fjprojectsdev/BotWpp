@@ -336,7 +336,7 @@ export async function handleGroupMessages(sock, message) {
                 return;
             }
             
-            const comandos = `🤖 COMANDOS ADMIN\n\n📊 ESTATÍSTICAS:\n/ranking - Top 10 membros\n/stats - Estatísticas gerais\n/perfil @user - Perfil do membro\n/atividade - Gráfico de atividade\n\n🛠️ UTILIDADES:\n/lembrete 30m texto - Agendar lembrete\n/sorteio - Sortear membro\n/admins - Lista de admins\n/fixar - Fixar mensagem\n/tutorial - Como remover membros\n\n🔒 ADMIN:\n/adicionarregra - Adicionar regra\n/addadmin @user - Adicionar admin\nfechar grupo / abrir grupo\n\n🤖 IA:\niMavy [pergunta] - Ativar IA\n\n📄 TODOS:\n/regras - Ver regras (todos podem usar)\n\n🚫 AUTOMÁTICO:\nRemove usuários que enviam conteúdo de cassino/apostas`;
+            const comandos = `🤖 COMANDOS ADMIN\n\n📊 ESTATÍSTICAS:\n/ranking - Top 10 membros\n/stats - Estatísticas gerais\n/perfil @user - Perfil do membro\n/atividade - Gráfico de atividade\n\n🛠️ UTILIDADES:\n/lembrete 30m texto - Agendar lembrete\n/sorteio - Sortear membro\n/admins - Lista de admins\n/fixar - Fixar mensagem\n\n🔒 ADMIN:\n/adicionarregra - Adicionar regra\n/addadmin @user - Adicionar admin\nfechar grupo / abrir grupo\n\n🤖 IA:\niMavy [pergunta] - Ativar IA\n\n📄 TODOS:\n/regras - Ver regras (todos podem usar)\n\n🚫 AUTOMÁTICO:\nRemove usuários que enviam conteúdo de cassino/apostas`;
             await sock.sendMessage(groupId, { text: comandos }, { quoted: message });
             return;
         }
@@ -480,19 +480,7 @@ export async function handleGroupMessages(sock, message) {
         
 
         
-        // Comando tutorial (admin)
-        if (text.toLowerCase().includes('/tutorial')) {
-            const isAdmin = await isGroupAdmin(sock, groupId, senderId) || botAdmins.has(senderId);
-            if (!isAdmin) {
-                await sock.sendMessage(groupId, { text: '❌ Apenas administradores podem usar este comando.' });
-                return;
-            }
-            
-            const tutorial = `📚 TUTORIAL: COMO REMOVER MEMBRO\n\n📱 PELO CELULAR:\n1. Toque no nome do grupo (topo)\n2. Encontre o participante na lista\n3. Toque e segure no nome\n4. Selecione "Remover participante"\n5. Confirme a remoção\n\n💻 PELO WHATSAPP WEB:\n1. Clique no nome do grupo (topo direito)\n2. Na coluna lateral, encontre a lista de participantes\n3. Passe o mouse sobre o participante\n4. Clique no menu (três pontos)\n5. Clique em "Remover participante" e confirme\n\n🤖 O bot remove automaticamente:\n• Conteúdo de cassino/apostas\n• Spam repetitivo\n• Links suspeitos`;
-            
-            await sock.sendMessage(groupId, { text: tutorial }, { quoted: message });
-            return;
-        }
+
         
         // Comando teste Supabase (admin)
         if (text.toLowerCase().includes('/testdb')) {
