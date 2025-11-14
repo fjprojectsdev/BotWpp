@@ -592,8 +592,7 @@ export async function handleGroupMessages(sock, message) {
         
         // Comando regras
         if (text.toLowerCase().includes('/regras')) {
-            let rulesText = groupRules.join('\n');
-            rulesText += '\n\n⚠️ O descumprimento pode resultar em advertência ou remoção.';
+            const rulesText = groupRules.join('\n');
             
             await sock.sendMessage(groupId, { text: rulesText }, { quoted: message });
             return;
